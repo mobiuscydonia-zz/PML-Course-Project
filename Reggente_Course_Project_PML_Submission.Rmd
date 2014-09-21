@@ -1,0 +1,71 @@
+---
+title: "Course Project for Practical Machine Learning"
+author: "Nicco Reggente"
+date: "Saturday, September 20, 2014"
+output: html_document
+---
+First, we will move into the directory in which the data is contained. This will need to be changed on a person-to-person basis. This should be the only hard-coding throughout the script.We will also want to make sure that the caret package is available and loady into the workspace.
+
+
+```{r}
+
+setwd("C:/Users/Nicco/Dropbox/CourseRA_Notes/Data Science Specilization/Practical Machine Learning/Course_Project")
+
+library("caret")
+```
+
+Now, we will bring the training data into an R workspace as a variable titled ***PML_Raw_Data***. We will also "attach" this variable so that we don't need to constantly type data=PML_Raw_Data when issuing commands.
+
+```{r}
+
+PML_Raw_Data<-read.csv(file="pml-training.csv")
+attach(PML_Raw_Data)
+
+```
+
+The first thing we want ot do is trim ourdataset to only consider the features of interest. We only want to use information from the acceleromaters positions on different parts of the body. Each of these has an axis of rotation, so we want to catpure all of them.We can do this by searching for patterns that begin with ***accel***. This can be accomplished in R with variations on the glob2rx and grep() functions that, then, index the original data set to "trim" it to only contain the features of interest.
+
+```{r}
+
+str_match_command<-glob2rx("accel*")
+
+feature_set<-PML_Raw_Data[ ,grep(str_match_command,names(PML_Raw_Data))]
+
+
+```
+
+Now, we will want to create a data partition that splits our data into a training and testing set (within this training set) in a cross-validation fashion. The function ***createFolds*** will accomplish this by crating a set of indices. 10 folds should suffice and give us an estimate of our out-of-sample error rate.
+
+
+```{r}
+
+intrain_cv_indices<-createFolds(classe,k=10,list=TRUE,returnTrain=TRUE)
+
+
+```
+
+Now, we want to loop over our cross validation indices so that we can train and test on subsets of non-overlapping data. We will do this by indexing our patterns (the variable named ***feature_set***) and our labels (the variable names ***classe***) by the ***intrain_cv_indices_variable***.
+
+
+```{r}
+
+for (i in 1:length(intrain_cv_indices)) {
+
+  
+  cur_training_indices<-unlist(intrain_cv_indices[i],recursive=FALSE,use.names=FALSE)
+  
+  cur_training_data=feature_set[cur_training_indices, ]
+  cur_training_labels=classe[cur_training_indices]
+  
+  fit<-train(cur_training_data,cur_training_labels,method="glm",preProc=c("center","scale"))
+  
+  
+  
+}
+
+
+
+
+
+
+
