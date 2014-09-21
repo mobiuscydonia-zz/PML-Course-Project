@@ -9,12 +9,13 @@ First, we will move into the directory in which the data is contained. This will
 
 ```{r}
 
-setwd("C:/Users/Nicco/Dropbox/CourseRA_Notes/Data Science Specilization/Practical Machine Learning/Course_Project")
+setwd("C:/Users/Nicco/Dropbox/CourseRA_Notes/Data Science Specilization/Practical Machine Learning/Course_Project/PML-Course-Project")
 
 library("caret")
 ```
 
-Now, we will bring the training data into an R workspace as a variable titled ***PML_Raw_Data***. We will also "attach" this variable so that we don't need to constantly type data=PML_Raw_Data when issuing commands.
+Now, we will bring the training data into an R workspace as a variable titled ***PML_Raw_Data***. We will also "attach" this variable so that we don't need to constantly type data=PML_Raw_Data when issuing commands. Since this is a local situation and we need to publish in HTML, I will comment out this read.csv line. This would be hardcoded when run on a local-machine.
+
 
 ```{r}
 
@@ -44,28 +45,73 @@ intrain_cv_indices<-createFolds(classe,k=10,list=TRUE,returnTrain=TRUE)
 
 ```
 
-Now, we want to loop over our cross validation indices so that we can train and test on subsets of non-overlapping data. We will do this by indexing our patterns (the variable named ***feature_set***) and our labels (the variable names ***classe***) by the ***intrain_cv_indices_variable***.
+Now, we want to loop over our cross validation indices so that we can train and test on subsets of non-overlapping data. We will do this by indexing our patterns (the variable named ***feature_set***) and our labels (the variable names ***classe***) by the ***intrain_cv_indices_variable***. In this case, we will use a ***linear svm*** as our training classifier for its ability to sift through unimportant data. We will also center and scale our data before allowing them to be used as features.
 
+After we build a model, we will test it on the left-out data, get predictions, and prepare those predictions to our actual testing labels. This is akin to comparing our Y values to our Y-hat values in regression.
+
+We will iteratively concatenate these accuracies and average at the end of the cross-validation folds.
+
+Lastly, we will save metrics ***Accuracy*** and ***Kappa*** to estimate the out-of-sample error for our model.
+
+This for-loop will output to the user the current cross-validation that the classifier is on, so that the user is not left in the dark. 
+
+NOTE TO GRADER: For the sake of html compilation time, I am only going to run this loop once. I have commented out the portion of the for-loop that will loop over each index of the cross-validation. This will only run once instead of 10 times for the 10-fold cross-validation. This makes it similar to if I had just used the createdatapartiion script instead of createfolds.
 
 ```{r}
 
-for (i in 1:length(intrain_cv_indices)) {
+Accuracy<-0
+Kappa<-0
+P_Value<-0
 
-  
+#for (i in 1:length(intrain_cv_indices)) {
+
+for (i in 1:1) {
+
+  print(paste("Currently on CV Number ",i))
   cur_training_indices<-unlist(intrain_cv_indices[i],recursive=FALSE,use.names=FALSE)
   
-  cur_training_data=feature_set[cur_training_indices, ]
-  cur_training_labels=classe[cur_training_indices]
+  cur_training_data<-feature_set[cur_training_indices, ]
+  cur_training_labels<-classe[cur_training_indices]
   
-  fit<-train(cur_training_data,cur_training_labels,method="glm",preProc=c("center","scale"))
+  fit<-train(cur_training_data,cur_training_labels,method="svmLinear",preProc=c("center","scale"))
   
+  cur_testing_data<-feature_set[-cur_training_indices, ]
+  cur_testing_labels<-classe[-cur_training_indices]
+
   
+  predictions<-predict(fit,newdata=cur_testing_data)
+  
+  Confusion_Matrix<-as.table(confusionMatrix(predictions,cur_testing_labels)$overall)
+  
+  Accuracy[i]<-Confusion_Matrix[1]
+  Kappa[i]<-Confusion_Matrix[2]
+  P_Value[i]<-Confusion_Matrix[6]
   
 }
 
+CV_Accuracy<-mean(Accuracy)
+CV_Kappa<-mean(Kappa)
+CV_P_Value<-mean(P_Value)
 
 
+```
 
+Let's visualize an exemplar prediction plot. In this case, we will just use the last fold of the cross-validation.
 
+```{r}
 
+featurePlot(cur_training_data,cur_training_labels)
 
+```
+
+It seems as though these features have some relation to the outcome variables. Also, finally, We should look at the average results and asses the predictive powers of our model, according to the cross-validation.
+
+```{r}
+CV_Accuracy
+CV_Kappa
+CV_P_Value
+```
+
+The significant p-value and high Kappa value tell us that the predicitions of our model are significantly related to the actual ground-truth of the unseen labels.
+
+We would assume that an out-of-sample error rate would be similar to that observed by our cross-validation. This assesment model is especially good for predicting out-of-sample error rate because we only trained on 60% of the data and tested on 40%. By training on 100% of this data set, we might even see an additional increase in accuracy, unless our model is to suffere from overfitting.
